@@ -1,582 +1,1465 @@
-<!--
-  PODx Meme Face-Off — Monthly vote module for the IBU Omnichannel & ML newsletter
-  ================================================================================
-  Drop-in: replace the two .meme-image blocks with <img src="..."> for real memes.
-  Backend: this prototype uses window.storage for the Claude preview. For production
-  on github.io / SharePoint, swap the storage helpers (search for STORAGE: comments)
-  for a Power Automate HTTP webhook, Microsoft Forms, or a small JSONBin endpoint.
--->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Touchpoint · Personalisation &amp; EWI</title>
+<meta name="description" content="The wins, the work, and the people behind them.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Bricolage+Grotesque:opsz,wght@12..96,800&display=swap');
+:root {
+  --bg-warm:     #4a2d3a;
+  --bg-mid:      #382a48;
+  --bg-deep:     #2a2050;
+  --bg-cool:     #1c1640;
+  --ink:         #f8f2ee;
+  --ink-2:       #c9bcd0;
+  --ink-3:       #8a7a92;
+  --amber:       #f0b766;
+  --coral:       #f08879;
+  --mint:        #7dd9c8;
+  --lilac:       #c8a8e8;
+  --glass:       rgba(255,255,255,0.045);
+  --glass-2:     rgba(255,255,255,0.075);
+  --bd:          rgba(255,255,255,0.10);
+  --bd-2:        rgba(255,255,255,0.20);
+}
 
-  :root {
-    --paper:        #f4ede0;
-    --paper-edge:   #ebe1cf;
-    --ink:          #181410;
-    --ink-soft:     #4a3f33;
-    --rule:         #181410;
-    --team-a:       #d83a1f;
-    --team-a-soft:  #fde4dd;
-    --team-b:       #0d5c63;
-    --team-b-soft:  #d5e7e8;
-    --gold:         #c89b3c;
-  }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg-cool);
+  color: var(--ink);
+  line-height: 1.55;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--amber); color: var(--bg-cool); }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+.bg {
+  position: fixed; inset: 0; z-index: -3;
+  background:
+    radial-gradient(ellipse 70% 60% at 0% 30%, rgba(74, 45, 58, 0.9), transparent 60%),
+    radial-gradient(ellipse 80% 70% at 100% 70%, rgba(28, 22, 64, 1), transparent 60%),
+    linear-gradient(135deg, var(--bg-warm) 0%, var(--bg-mid) 30%, var(--bg-deep) 65%, var(--bg-cool) 100%);
+}
+.grain {
+  position: fixed; inset: 0; z-index: -2;
+  pointer-events: none;
+  opacity: 0.4;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.12'/></svg>");
+  mix-blend-mode: overlay;
+}
+.spotlight {
+  position: fixed; inset: 0; z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle 600px at var(--mx, 50%) var(--my, 30%), rgba(240, 183, 102, 0.08), transparent 70%);
+  transition: background 0.3s ease;
+}
 
-  .podx-faceoff {
-    font-family: 'DM Sans', sans-serif;
-    color: var(--ink);
-    background: var(--paper);
-    padding: 48px 24px 56px;
-    position: relative;
-    overflow: hidden;
-    border-top: 2px solid var(--ink);
-    border-bottom: 2px solid var(--ink);
-  }
+main { position: relative; z-index: 1; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 28px; }
+section { padding: 90px 0; position: relative; }
 
-  /* paper grain */
-  .podx-faceoff::before {
-    content: '';
-    position: absolute; inset: 0;
-    background-image:
-      radial-gradient(circle at 20% 30%, rgba(24,20,16,.025) 0, transparent 40%),
-      radial-gradient(circle at 80% 70%, rgba(24,20,16,.025) 0, transparent 40%);
-    pointer-events: none;
-  }
-  .podx-faceoff::after {
-    content: '';
-    position: absolute; inset: 0;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.08'/></svg>");
-    pointer-events: none;
-    mix-blend-mode: multiply;
-  }
+.progress {
+  position: fixed; top: 0; left: 0;
+  height: 2px; width: 0%;
+  background: linear-gradient(90deg, var(--amber), var(--coral), var(--lilac));
+  z-index: 100;
+  box-shadow: 0 0 8px rgba(240, 183, 102, 0.5);
+}
 
-  .container {
-    max-width: 1100px;
-    margin: 0 auto;
-    position: relative;
-    z-index: 1;
-  }
+/* HERO */
+.hero {
+  min-height: 78vh;
+  display: flex; align-items: center;
+  padding: 80px 0 40px;
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 60px;
+  align-items: center;
+  width: 100%;
+}
+.hero-left .hello {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 700;
+  font-size: clamp(40px, 6.5vw, 76px);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+.hero-left .lede {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(18px, 2.2vw, 24px);
+  color: var(--ink-2);
+  margin-top: 18px;
+  max-width: 560px;
+}
+.hero-meta {
+  display: inline-flex; flex-wrap: wrap; gap: 10px;
+  margin-top: 32px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hero-meta span {
+  padding: 6px 12px;
+  border: 1px solid var(--bd);
+  border-radius: 100px;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.hero-meta .dot {
+  width: 6px; height: 6px;
+  background: var(--mint);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--mint);
+  animation: pulse 2.5s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-  /* champion ribbon */
-  .champion-strip {
-    display: flex; align-items: center; gap: 14px;
-    padding: 10px 16px;
-    border: 1.5px solid var(--ink);
-    background: var(--paper-edge);
-    margin-bottom: 28px;
-    font-size: 12px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    font-weight: 600;
-  }
-  .champion-strip .crown {
-    width: 22px; height: 22px;
-    background: var(--gold);
-    border: 1.5px solid var(--ink);
-    border-radius: 50%;
-    flex-shrink: 0;
-    display: grid; place-items: center;
-    font-size: 12px;
-  }
-  .champion-strip .label { color: var(--ink-soft); }
-  .champion-strip .winner { color: var(--ink); }
-  .champion-strip .stat {
-    margin-left: auto;
-    font-family: 'Instrument Serif', serif;
-    font-style: italic;
-    text-transform: none;
-    letter-spacing: 0;
-    font-size: 14px;
-    color: var(--ink-soft);
-  }
+.clocks { display: flex; flex-direction: column; gap: 14px; }
+.clock {
+  background: var(--glass);
+  border: 1px solid var(--bd);
+  border-radius: 14px;
+  padding: 18px 22px;
+  min-width: 280px;
+  position: relative;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.clock .city { font-size: 14px; color: var(--ink); margin-bottom: 8px; font-weight: 500; }
+.clock .row { display: flex; align-items: baseline; gap: 14px; }
+.clock .time {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 36px; font-weight: 600;
+  line-height: 1; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.clock .time .secs { font-size: 18px; color: var(--ink-2); font-weight: 500; opacity: 0.75; }
+.clock .ampm { font-size: 14px; color: var(--ink-2); font-weight: 500; }
+.clock .stack { display: flex; flex-direction: column; gap: 2px; }
+.clock .ahead { font-size: 12px; color: var(--ink-2); font-weight: 600; }
+.clock .date { font-size: 12px; color: var(--ink-3); }
 
-  /* title block */
-  .masthead {
-    text-align: center;
-    margin-bottom: 36px;
-  }
-  .kicker {
-    display: inline-block;
-    font-size: 11px;
-    letter-spacing: 0.3em;
-    font-weight: 700;
-    padding: 6px 14px;
-    border: 1.5px solid var(--ink);
-    margin-bottom: 18px;
-  }
-  .title {
-    font-family: 'Bricolage Grotesque', sans-serif;
-    font-weight: 800;
-    font-size: clamp(40px, 7vw, 78px);
-    line-height: 0.95;
-    letter-spacing: -0.03em;
-    text-transform: uppercase;
-  }
-  .title .it {
-    font-family: 'Instrument Serif', serif;
-    font-style: italic;
-    font-weight: 400;
-    text-transform: none;
-    letter-spacing: -0.02em;
-  }
-  .subtitle {
-    margin-top: 14px;
-    font-family: 'Instrument Serif', serif;
-    font-style: italic;
-    font-size: 18px;
-    color: var(--ink-soft);
-  }
+.word {
+  display: inline-block;
+  opacity: 0; transform: translateY(30px);
+  animation: wordIn 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+.word:nth-child(1) { animation-delay: 0.1s; }
+.word:nth-child(2) { animation-delay: 0.22s; }
+.word:nth-child(3) { animation-delay: 0.34s; }
+.word:nth-child(4) { animation-delay: 0.46s; }
+@keyframes wordIn { to { opacity: 1; transform: translateY(0); } }
+.lede, .hero-meta, .clocks { opacity: 0; animation: fadeUp 0.9s ease forwards; }
+.lede { animation-delay: 0.7s; }
+.hero-meta { animation-delay: 0.85s; }
+.clocks { animation-delay: 0.4s; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-  /* arena */
-  .arena {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: 24px;
-    align-items: stretch;
-    margin: 36px 0 28px;
-  }
+/* TICKER */
+.ticker-wrap {
+  border-top: 1px solid var(--bd);
+  border-bottom: 1px solid var(--bd);
+  padding: 16px 0; overflow: hidden; position: relative;
+  background: rgba(0,0,0,0.15); backdrop-filter: blur(6px);
+}
+.ticker-wrap::before, .ticker-wrap::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 80px; z-index: 2; pointer-events: none;
+}
+.ticker-wrap::before { left: 0; background: linear-gradient(90deg, var(--bg-warm), transparent); }
+.ticker-wrap::after { right: 0; background: linear-gradient(-90deg, var(--bg-cool), transparent); }
+.ticker {
+  display: flex; gap: 56px; white-space: nowrap;
+  animation: tickerSlide 55s linear infinite;
+  font-family: 'DM Mono', monospace;
+  font-size: 12.5px; color: var(--ink-2);
+  letter-spacing: 0.05em;
+}
+.ticker:hover { animation-play-state: paused; }
+.ticker .item { display: inline-flex; align-items: center; gap: 14px; }
+.ticker .item::before { content: '◆'; color: var(--amber); font-size: 8px; }
+.ticker .item b { color: var(--ink); font-weight: 600; }
+@keyframes tickerSlide { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
-  .meme-card {
-    background: #fff;
-    border: 2px solid var(--ink);
-    box-shadow: 8px 8px 0 var(--ink);
-    padding: 18px 18px 20px;
-    display: flex; flex-direction: column;
-    transition: transform .25s ease, box-shadow .25s ease;
-    position: relative;
-  }
-  .meme-card.team-a { transform: rotate(-1.2deg); }
-  .meme-card.team-b { transform: rotate(1.2deg); }
-  .meme-card:hover { transform: rotate(0) translateY(-4px); box-shadow: 12px 12px 0 var(--ink); }
+/* SECTION HEAD */
+.head { margin-bottom: 44px; }
+.head .num {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.22em;
+  color: var(--ink-3);
+  display: inline-block;
+  margin-bottom: 14px;
+}
+.head h2 {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 700;
+  font-size: clamp(32px, 4.5vw, 56px);
+  line-height: 1.05; letter-spacing: -0.025em;
+  margin-bottom: 12px;
+}
+.head h2 .it {
+  font-style: italic; font-weight: 400;
+  background: linear-gradient(135deg, var(--amber), var(--coral) 60%, var(--lilac));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.head .sub { color: var(--ink-2); font-size: 16px; max-width: 620px; }
 
-  .meme-tag {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-size: 11px; font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    padding: 5px 10px;
-    align-self: flex-start;
-    margin-bottom: 12px;
-  }
-  .team-a .meme-tag { background: var(--team-a); color: #fff; }
-  .team-b .meme-tag { background: var(--team-b); color: #fff; }
-  .meme-tag .dot { width: 6px; height: 6px; background: currentColor; border-radius: 50%; }
+/* PLATFORMS */
+.platforms { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.plat {
+  background: var(--glass);
+  border: 1px solid var(--bd);
+  border-radius: 18px;
+  padding: 26px 24px 24px;
+  position: relative; overflow: hidden;
+  backdrop-filter: blur(14px);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s;
+}
+.plat:hover { transform: translateY(-4px); border-color: var(--bd-2); }
+.plat::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 100%; height: 3px;
+  background: var(--accent);
+  opacity: 0; transition: opacity 0.3s;
+}
+.plat:hover::before { opacity: 1; }
+.plat[data-acc="amber"] { --accent: var(--amber); }
+.plat[data-acc="coral"] { --accent: var(--coral); }
+.plat[data-acc="mint"]  { --accent: var(--mint); }
+.plat[data-acc="lilac"] { --accent: var(--lilac); }
+.plat .badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.22em;
+  color: var(--accent);
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: 100px;
+  display: inline-block;
+  margin-bottom: 18px;
+}
+.plat h3 {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 600; font-size: 17px;
+  letter-spacing: -0.01em; margin-bottom: 16px;
+}
+.plat .metric { margin-bottom: 12px; }
+.plat .metric .v {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 700; font-size: 32px; line-height: 1;
+  letter-spacing: -0.03em; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.plat .metric .l { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
+.plat .row-stats {
+  display: flex; justify-content: space-between;
+  margin-top: 18px; padding-top: 16px;
+  border-top: 1px solid var(--bd);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--ink-2);
+}
+.plat .row-stats span b { color: var(--ink); font-weight: 500; }
 
-  /* placeholder meme image — swap for <img> */
-  .meme-image {
-    aspect-ratio: 4 / 3;
-    border: 1.5px solid var(--ink);
-    display: grid;
-    place-items: center;
-    position: relative;
-    overflow: hidden;
-    margin-bottom: 14px;
-  }
-  .team-a .meme-image { background: var(--team-a-soft); }
-  .team-b .meme-image { background: var(--team-b-soft); }
-  .meme-image .glyph {
-    font-family: 'Bricolage Grotesque', sans-serif;
-    font-size: clamp(80px, 14vw, 140px);
-    font-weight: 800;
-    line-height: 1;
-  }
-  .team-a .meme-image .glyph { color: var(--team-a); }
-  .team-b .meme-image .glyph { color: var(--team-b); }
-  .meme-image .swap-hint {
-    position: absolute;
-    bottom: 8px; right: 10px;
-    font-size: 10px;
-    color: var(--ink-soft);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    opacity: 0.6;
-  }
+/* JOURNEY */
+.journey-card {
+  background: var(--glass);
+  border: 1px solid var(--bd);
+  border-radius: 22px;
+  padding: 36px;
+  backdrop-filter: blur(14px);
+  position: relative; overflow: hidden;
+}
+.journey-meta {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 16px;
+  margin-bottom: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.journey-meta .live { color: var(--mint); display: inline-flex; align-items: center; gap: 6px; }
+.journey-meta .live::before {
+  content: ''; width: 6px; height: 6px; background: var(--mint); border-radius: 50%;
+  box-shadow: 0 0 8px var(--mint);
+  animation: pulse 1.6s infinite;
+}
+.journey-card h3 {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 700; font-size: clamp(24px, 3vw, 36px);
+  letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+}
+.journey-card h3 em { font-style: italic; color: var(--amber); }
+.journey-card .desc { color: var(--ink-2); font-size: 15px; max-width: 660px; }
 
-  .meme-caption {
-    font-family: 'Instrument Serif', serif;
-    font-size: 19px;
-    line-height: 1.3;
-    margin-bottom: 18px;
-    flex-grow: 1;
-  }
+.flow { margin: 36px 0 24px; position: relative; width: 100%; }
+.flow svg { width: 100%; height: auto; display: block; }
+.node circle, .node rect { transition: filter 0.3s; }
+.node:hover circle, .node:hover rect { filter: brightness(1.3); }
+.node text {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px; fill: var(--ink); font-weight: 500;
+}
+.node .ico-text { font-size: 16px; fill: var(--bg-cool); font-weight: 700; }
+.flow-line {
+  fill: none; stroke: var(--bd-2);
+  stroke-width: 2; stroke-dasharray: 4 4;
+  stroke-dashoffset: 100;
+  transition: stroke-dashoffset 1.2s ease;
+}
+.flow.in .flow-line { stroke-dashoffset: 0; }
 
-  .vote-btn {
-    width: 100%;
-    padding: 14px 18px;
-    border: 2px solid var(--ink);
-    background: var(--ink);
-    color: var(--paper);
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 700;
-    font-size: 14px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: transform .15s ease, background .2s ease, color .2s ease;
-  }
-  .team-a .vote-btn:hover { background: var(--team-a); border-color: var(--team-a); transform: translateY(-2px); }
-  .team-b .vote-btn:hover { background: var(--team-b); border-color: var(--team-b); transform: translateY(-2px); }
-  .vote-btn:active { transform: translateY(0); }
-  .vote-btn:disabled { cursor: default; opacity: .5; }
+.journey-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-top: 26px;
+  padding-top: 26px;
+  border-top: 1px solid var(--bd);
+}
+.j-stat .v {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 700; font-size: 26px;
+  letter-spacing: -0.03em; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.j-stat .v .accent { color: var(--amber); }
+.j-stat .l {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--ink-3); margin-top: 4px;
+}
 
-  /* result bar (hidden until voted) */
-  .result {
-    display: none;
-    border: 1.5px solid var(--ink);
-    padding: 10px 12px;
-    background: var(--paper-edge);
-  }
-  .result.visible { display: block; animation: fadeUp .4s ease both; }
-  .result-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
-  .result-pct { font-family: 'Bricolage Grotesque', sans-serif; font-size: 28px; letter-spacing: -0.02em; }
-  .team-a .result-pct { color: var(--team-a); }
-  .team-b .result-pct { color: var(--team-b); }
-  .result-bar { height: 8px; background: #fff; border: 1px solid var(--ink); position: relative; overflow: hidden; }
-  .result-bar > span { display: block; height: 100%; width: 0%; transition: width 1s cubic-bezier(.2,.8,.2,1); }
-  .team-a .result-bar > span { background: var(--team-a); }
-  .team-b .result-bar > span { background: var(--team-b); }
-  .result-count { font-size: 11px; color: var(--ink-soft); margin-top: 6px; letter-spacing: 0.06em; }
+/* SCHEMA */
+.split-2 {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 24px; align-items: stretch;
+}
+.code-card {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--bd);
+  border-radius: 18px; overflow: hidden;
+  font-family: 'DM Mono', monospace;
+  display: flex; flex-direction: column;
+}
+.code-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 18px;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid var(--bd);
+  font-size: 11px; color: var(--ink-3); letter-spacing: 0.12em;
+}
+.code-bar .d { width: 8px; height: 8px; border-radius: 50%; }
+.code-bar .d.a { background: #ff7060; }
+.code-bar .d.b { background: var(--amber); }
+.code-bar .d.c { background: var(--mint); }
+.code-bar .name { margin-left: 8px; color: var(--ink-2); }
+.code-body { padding: 22px; font-size: 13px; line-height: 1.7; flex-grow: 1; }
+.code-body .k { color: var(--lilac); }
+.code-body .s { color: var(--mint); }
+.code-body .n { color: var(--coral); }
+.code-body .c { color: var(--ink-3); font-style: italic; }
+.code-body .new {
+  background: rgba(240, 183, 102, 0.15);
+  border-left: 3px solid var(--amber);
+  padding: 2px 6px; margin-left: -6px;
+}
 
-  /* the VS column */
-  .vs {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    position: relative;
-    padding: 0 4px;
-  }
-  .vs-glyph {
-    font-family: 'Instrument Serif', serif;
-    font-style: italic;
-    font-size: clamp(80px, 12vw, 140px);
-    line-height: 0.85;
-    color: var(--ink);
-    position: relative;
-  }
-  .vs-glyph::before, .vs-glyph::after {
-    content: '✦';
-    position: absolute;
-    font-size: 18px;
-    color: var(--gold);
-    font-style: normal;
-  }
-  .vs-glyph::before { top: -6px; left: -16px; }
-  .vs-glyph::after  { bottom: 4px; right: -18px; }
-  .vs-flash {
-    margin-top: 10px;
-    font-size: 10px;
-    letter-spacing: 0.3em;
-    font-weight: 700;
-    color: var(--ink-soft);
-    text-transform: uppercase;
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    display: none;
-  }
+.schema-info { display: flex; flex-direction: column; justify-content: center; padding: 8px 8px 8px 0; }
+.schema-info h3 {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 700; font-size: 28px;
+  line-height: 1.1; letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+.schema-info h3 em { font-style: italic; color: var(--amber); }
+.schema-info p { color: var(--ink-2); font-size: 15px; margin-bottom: 18px; }
+.schema-info .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.schema-info .pill {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.08em;
+  padding: 5px 12px;
+  background: var(--glass);
+  border: 1px solid var(--bd);
+  border-radius: 100px; color: var(--ink-2);
+}
 
-  /* meta bar */
-  .meta {
-    display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
-    padding-top: 22px;
-    border-top: 1.5px solid var(--ink);
-  }
-  .meta .total {
-    font-family: 'Instrument Serif', serif;
-    font-style: italic;
-    font-size: 22px;
-  }
-  .meta .total b {
-    font-family: 'Bricolage Grotesque', sans-serif;
-    font-style: normal;
-    font-weight: 800;
-    font-size: 28px;
-    margin-right: 6px;
-  }
-  .meta .hall {
-    margin-left: auto;
-    display: flex; align-items: center; gap: 10px;
-    font-size: 12px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    font-weight: 600;
-    color: var(--ink-soft);
-  }
-  .meta .hall .pill {
-    border: 1.5px solid var(--ink);
-    padding: 4px 10px;
-    color: var(--ink);
-    background: var(--paper-edge);
-  }
-  .reset {
-    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
-    background: none; border: 1px solid var(--ink-soft); color: var(--ink-soft);
-    padding: 6px 10px; cursor: pointer; font-family: inherit;
-  }
-  .reset:hover { color: var(--ink); border-color: var(--ink); }
+/* INSIGHT */
+.insight-card {
+  background: var(--glass);
+  border: 1px solid var(--bd);
+  border-radius: 22px;
+  padding: 36px;
+  backdrop-filter: blur(14px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px; align-items: center;
+}
+.insight-text .tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--coral); display: inline-block; margin-bottom: 14px;
+  padding: 4px 12px; border: 1px solid var(--coral); border-radius: 100px;
+}
+.insight-text .finding {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-style: italic; font-weight: 400;
+  font-size: clamp(22px, 2.6vw, 30px);
+  line-height: 1.25; letter-spacing: -0.015em;
+  margin-bottom: 16px;
+}
+.insight-text .finding b {
+  font-style: normal; font-weight: 700;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.insight-text .meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--ink-3); letter-spacing: 0.05em;
+}
+.insight-text .meta b { color: var(--ink-2); font-weight: 500; }
 
-  .voted-msg {
-    text-align: center;
-    margin-top: 18px;
-    font-family: 'Instrument Serif', serif;
-    font-style: italic;
-    font-size: 17px;
-    color: var(--ink-soft);
-    min-height: 22px;
-  }
-  .voted-msg.show { animation: fadeUp .5s ease both; }
+.chart {
+  position: relative; height: 220px;
+  display: flex; align-items: flex-end;
+  gap: 10px; padding: 16px 0 32px;
+  border-bottom: 1px solid var(--bd);
+}
+.chart .bar-wrap {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 8px; height: 100%;
+  justify-content: flex-end;
+}
+.chart .bar {
+  width: 100%;
+  background: linear-gradient(180deg, var(--coral), rgba(240, 136, 121, 0.4));
+  border-radius: 6px 6px 0 0;
+  position: relative; height: 0;
+  transition: height 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.chart .bar.alt { background: linear-gradient(180deg, var(--amber), rgba(240, 183, 102, 0.4)); }
+.chart .bar .v {
+  position: absolute; top: -22px; left: 50%;
+  transform: translateX(-50%);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--ink); font-weight: 500;
+}
+.chart .lab {
+  position: absolute; bottom: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--ink-3);
+  letter-spacing: 0.08em;
+}
 
-  /* confetti */
-  .confetti { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
-  .confetti span {
-    position: absolute;
-    width: 8px; height: 14px;
-    top: 40%;
-    opacity: 0;
-  }
+/* TOOLKIT */
+.toolkit { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.tip {
+  background: var(--glass);
+  border: 1px solid var(--bd);
+  border-radius: 18px;
+  padding: 26px;
+  backdrop-filter: blur(14px);
+  position: relative;
+  transition: transform 0.3s, border-color 0.3s;
+  overflow: hidden;
+}
+.tip:hover { transform: translateY(-4px); border-color: var(--bd-2); }
+.tip .num {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-style: italic; font-weight: 700;
+  font-size: 64px; line-height: 1;
+  color: var(--amber); opacity: 0.5;
+  position: absolute; top: 14px; right: 22px;
+  letter-spacing: -0.05em;
+}
+.tip .ctx {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.18em;
+  color: var(--mint); margin-bottom: 14px;
+  text-transform: uppercase;
+}
+.tip h4 {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 600; font-size: 18px;
+  line-height: 1.2; letter-spacing: -0.01em;
+  margin-bottom: 10px;
+}
+.tip h4 em { font-style: italic; color: var(--amber); }
+.tip p { font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+.tip code {
+  font-family: 'DM Mono', monospace;
+  font-size: 12.5px;
+  background: rgba(0,0,0,0.3);
+  padding: 1px 6px; border-radius: 4px;
+  color: var(--lilac); border: 1px solid var(--bd);
+}
 
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes confettiFall {
-    0%   { opacity: 1; transform: translateY(0) rotate(0); }
-    100% { opacity: 0; transform: translateY(400px) rotate(540deg); }
-  }
+/* GLOSSARY */
+.glossary { display: flex; gap: 8px; height: 360px; }
+.gloss {
+  flex: 1;
+  background: var(--glass);
+  border: 1px solid var(--bd);
+  border-radius: 18px;
+  padding: 24px;
+  cursor: pointer;
+  transition: flex 0.6s cubic-bezier(0.5, 0, 0.2, 1), background 0.3s;
+  overflow: hidden; position: relative;
+  display: flex; flex-direction: column; justify-content: space-between;
+  backdrop-filter: blur(14px);
+}
+.gloss:hover, .gloss.open { flex: 4; background: var(--glass-2); }
+.gloss .acro {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 700; font-size: 32px;
+  letter-spacing: -0.03em;
+  color: var(--amber); line-height: 1;
+}
+.gloss .full {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 600; font-size: 17px;
+  line-height: 1.25; letter-spacing: -0.01em;
+  margin-top: 8px; color: var(--ink);
+  opacity: 0; max-height: 0;
+  transition: opacity 0.4s 0.2s, max-height 0.6s;
+}
+.gloss:hover .full, .gloss.open .full { opacity: 1; max-height: 100px; }
+.gloss .body {
+  margin-top: 14px; font-size: 14px;
+  color: var(--ink-2); line-height: 1.5;
+  opacity: 0; transition: opacity 0.4s 0.3s;
+}
+.gloss:hover .body, .gloss.open .body { opacity: 1; }
+.gloss .arrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.15em;
+  color: var(--ink-3); margin-top: auto;
+}
+.gloss:hover .arrow, .gloss.open .arrow { color: var(--amber); }
 
-  /* mobile */
-  @media (max-width: 720px) {
-    .arena { grid-template-columns: 1fr; gap: 16px; }
-    .vs { padding: 8px 0; }
-    .vs-glyph { font-size: 72px; }
-    .meme-card.team-a, .meme-card.team-b { transform: none; }
-    .meta .hall { margin-left: 0; width: 100%; }
-  }
+/* KUDOS */
+.kudos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+.kudo {
+  background: var(--glass);
+  border: 1px solid var(--bd);
+  border-radius: 18px;
+  padding: 26px 24px;
+  backdrop-filter: blur(14px);
+  position: relative;
+  display: flex; gap: 16px; align-items: flex-start;
+  transition: transform 0.3s, border-color 0.3s;
+}
+.kudo:hover { transform: translateY(-4px); border-color: var(--bd-2); }
+.kudo .av {
+  width: 52px; height: 52px; border-radius: 50%;
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 700; font-size: 19px;
+  color: var(--bg-cool); letter-spacing: -0.02em;
+  position: relative;
+}
+.kudo .av::after {
+  content: ''; position: absolute; inset: -4px;
+  border-radius: 50%;
+  border: 1px dashed var(--bd-2);
+  opacity: 0; transition: opacity 0.3s;
+  animation: rotate 18s linear infinite;
+}
+.kudo:hover .av::after { opacity: 1; }
+@keyframes rotate { to { transform: rotate(360deg); } }
+.kudo .who {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 600; font-size: 16px;
+  letter-spacing: -0.01em;
+}
+.kudo .role {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.15em;
+  color: var(--ink-3); margin-top: 2px;
+  text-transform: uppercase;
+}
+.kudo .msg {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-style: italic; font-size: 15px;
+  line-height: 1.45; color: var(--ink); margin-top: 12px;
+}
+.kudo .from {
+  font-family: 'Caveat', cursive;
+  font-size: 18px; color: var(--amber);
+  margin-top: 8px; display: block;
+}
+
+/* ROADMAP */
+.roadmap {
+  display: flex; flex-direction: column; gap: 0;
+  position: relative; padding-left: 40px;
+}
+.roadmap::before {
+  content: ''; position: absolute;
+  left: 14px; top: 12px; bottom: 12px;
+  width: 2px;
+  background: linear-gradient(180deg, var(--amber), var(--coral), var(--lilac), var(--mint));
+}
+.rm {
+  position: relative; padding: 18px 0 22px;
+  opacity: 0; transform: translateX(-20px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.rm.in { opacity: 1; transform: translateX(0); }
+.rm::before {
+  content: ''; position: absolute;
+  left: -32px; top: 22px;
+  width: 12px; height: 12px;
+  border-radius: 50%; background: var(--ink);
+  box-shadow: 0 0 0 4px var(--bg-deep), 0 0 12px var(--amber);
+}
+.rm:nth-child(1)::before { background: var(--amber); }
+.rm:nth-child(2)::before { background: var(--coral); }
+.rm:nth-child(3)::before { background: var(--lilac); }
+.rm:nth-child(4)::before { background: var(--mint); }
+.rm .when {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--amber); margin-bottom: 6px;
+}
+.rm h4 {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 600; font-size: 19px;
+  letter-spacing: -0.01em; margin-bottom: 6px;
+}
+.rm p { color: var(--ink-2); font-size: 14.5px; max-width: 700px; }
+
+/* JOKE + MOOD */
+.split-jm { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.joke {
+  background: var(--glass);
+  border: 1px solid var(--bd);
+  border-radius: 22px;
+  padding: 36px;
+  backdrop-filter: blur(14px);
+  position: relative; overflow: hidden;
+}
+.joke::before {
+  content: '👀';
+  position: absolute; top: 20px; right: 24px;
+  font-size: 28px; opacity: 0.4;
+  transition: opacity 0.3s, transform 0.3s;
+}
+.joke:hover::before { opacity: 1; transform: rotate(8deg); }
+.joke .lab {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.2em;
+  color: var(--mint); margin-bottom: 16px;
+  text-transform: uppercase;
+}
+.joke .setup {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-style: italic;
+  font-size: clamp(18px, 2.2vw, 24px);
+  line-height: 1.35; color: var(--ink);
+}
+.joke .punch {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 600; font-size: 17px;
+  color: var(--amber); margin-top: 14px;
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.5s ease;
+}
+.joke.shown .punch { max-height: 100px; }
+.joke .btn {
+  margin-top: 18px;
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--bd-2);
+  padding: 10px 18px; border-radius: 100px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.18em;
+  text-transform: uppercase; cursor: pointer;
+  transition: all 0.2s;
+}
+.joke .btn:hover { border-color: var(--amber); color: var(--amber); }
+.joke.shown .btn { display: none; }
+
+.mood {
+  background: linear-gradient(135deg, rgba(240, 183, 102, 0.12), rgba(240, 136, 121, 0.08));
+  border: 1px solid var(--bd-2);
+  border-radius: 22px;
+  padding: 36px; text-align: center;
+  backdrop-filter: blur(14px);
+  position: relative;
+}
+.mood .lab {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.2em;
+  color: var(--ink-2); margin-bottom: 14px;
+  text-transform: uppercase;
+}
+.mood h3 {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 600; font-size: clamp(20px, 2.4vw, 26px);
+  line-height: 1.2; margin-bottom: 26px;
+  letter-spacing: -0.02em;
+}
+.mood h3 em { font-style: italic; color: var(--amber); }
+.moods { display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.mood-btn {
+  font-size: 32px;
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--bd);
+  cursor: pointer;
+  display: grid; place-items: center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s, border-color 0.2s;
+  user-select: none;
+}
+.mood-btn:hover {
+  transform: scale(1.2) rotate(-6deg);
+  background: rgba(255,255,255,0.1);
+  border-color: var(--amber);
+}
+.mood-btn.picked {
+  background: var(--amber);
+  border-color: var(--amber);
+  transform: scale(1.15);
+}
+.mood-thanks {
+  margin-top: 18px;
+  font-family: 'Caveat', cursive;
+  font-size: 22px; color: var(--amber);
+  min-height: 28px; opacity: 0;
+  transition: opacity 0.4s;
+}
+.mood-thanks.show { opacity: 1; }
+
+/* FOOTER */
+footer {
+  border-top: 1px solid var(--bd);
+  padding: 60px 0 40px; margin-top: 60px;
+  background: rgba(0,0,0,0.2);
+  position: relative; z-index: 1;
+}
+.foot-grid {
+  display: grid; grid-template-columns: 2fr 1fr 1fr;
+  gap: 40px; margin-bottom: 36px;
+}
+.foot-brand .logo {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 700; font-size: 28px;
+  letter-spacing: -0.02em;
+}
+.foot-brand .logo em {
+  font-style: italic;
+  background: linear-gradient(135deg, var(--amber), var(--coral));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.foot-brand p {
+  margin-top: 8px; color: var(--ink-2);
+  max-width: 380px; font-size: 14px;
+}
+.foot-col h5 {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.2em;
+  color: var(--ink-3); text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.foot-col a {
+  display: block; color: var(--ink-2);
+  text-decoration: none; font-size: 14px;
+  padding: 6px 0;
+  transition: color 0.2s, padding-left 0.2s;
+}
+.foot-col a:hover { color: var(--amber); padding-left: 6px; }
+.legal {
+  font-family: 'DM Mono', monospace;
+  font-size: 10.5px; color: var(--ink-3);
+  text-align: center;
+  border-top: 1px solid var(--bd);
+  padding-top: 24px;
+  letter-spacing: 0.05em; line-height: 1.7;
+}
+
+/* REVEAL */
+.reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.9s ease, transform 0.9s ease; }
+.reveal.in { opacity: 1; transform: translateY(0); }
+
+/* MOBILE */
+@media (max-width: 960px) {
+  .platforms { grid-template-columns: repeat(2, 1fr); }
+  .toolkit { grid-template-columns: 1fr; }
+  .split-2, .insight-card, .split-jm { grid-template-columns: 1fr; }
+  .glossary { flex-direction: column; height: auto; }
+  .gloss { min-height: 100px; }
+  .gloss .full, .gloss .body { opacity: 1; max-height: 200px; margin-top: 8px; }
+  .hero-grid { grid-template-columns: 1fr; gap: 30px; }
+  .clocks { flex-direction: row; flex-wrap: wrap; }
+  .clock { min-width: 240px; flex: 1; }
+  .foot-grid { grid-template-columns: 1fr; gap: 24px; }
+}
+@media (max-width: 600px) {
+  .platforms { grid-template-columns: 1fr; }
+  .clocks { flex-direction: column; }
+}
 </style>
+</head>
+<body>
 
-<section class="podx-faceoff">
-  <div class="confetti" id="confetti"></div>
-  <div class="container">
+<div class="bg"></div>
+<div class="grain"></div>
+<div class="spotlight" id="spot"></div>
+<div class="progress" id="progress"></div>
 
-    <div class="champion-strip">
-      <div class="crown">♛</div>
-      <span class="label">Reigning champion</span>
-      <span class="winner" id="lastWinner">"When the dashboard finally loads after 14 refreshes"</span>
-      <span class="stat" id="lastWinnerStat">— won March with 67% of votes</span>
-    </div>
+<main>
 
-    <div class="masthead">
-      <div class="kicker">Round 03 · April 2026</div>
-      <h1 class="title">Meme <span class="it">Face-off</span></h1>
-      <p class="subtitle">Two contenders. One winner. Tap to vote — results live.</p>
-    </div>
-
-    <div class="arena">
-
-      <!-- ===== MEME A ===== -->
-      <article class="meme-card team-a" data-team="a">
-        <div class="meme-tag"><span class="dot"></span>Contender A</div>
-
-        <!-- STORAGE: replace with <img src="meme-a.jpg" alt=""> -->
-        <div class="meme-image">
-          <span class="glyph">A</span>
-          <span class="swap-hint">Swap with image</span>
-        </div>
-
-        <p class="meme-caption">"<em>Sure, the model's at 94% accuracy</em> — but have you tried explaining it to legal?"</p>
-
-        <button class="vote-btn" data-vote="a">Vote for A</button>
-
-        <div class="result" id="result-a">
-          <div class="result-row">
-            <span>Contender A</span>
-            <span class="result-pct" id="pct-a">0%</span>
-          </div>
-          <div class="result-bar"><span id="bar-a"></span></div>
-          <div class="result-count" id="count-a">0 votes</div>
-        </div>
-      </article>
-
-      <!-- ===== VS ===== -->
-      <div class="vs">
-        <div class="vs-glyph">vs</div>
-      </div>
-
-      <!-- ===== MEME B ===== -->
-      <article class="meme-card team-b" data-team="b">
-        <div class="meme-tag"><span class="dot"></span>Contender B</div>
-
-        <!-- STORAGE: replace with <img src="meme-b.jpg" alt=""> -->
-        <div class="meme-image">
-          <span class="glyph">B</span>
-          <span class="swap-hint">Swap with image</span>
-        </div>
-
-        <p class="meme-caption">When the stakeholder asks for "<em>just one more feature</em>" the day before launch.</p>
-
-        <button class="vote-btn" data-vote="b">Vote for B</button>
-
-        <div class="result" id="result-b">
-          <div class="result-row">
-            <span>Contender B</span>
-            <span class="result-pct" id="pct-b">0%</span>
-          </div>
-          <div class="result-bar"><span id="bar-b"></span></div>
-          <div class="result-count" id="count-b">0 votes</div>
-        </div>
-      </article>
-
-    </div>
-
-    <div class="voted-msg" id="votedMsg"></div>
-
-    <div class="meta">
-      <div class="total"><b id="totalVotes">0</b>votes cast this round</div>
-      <div class="hall">
-        <span>Hall of Fame</span>
-        <span class="pill">Feb · Coffee.gif</span>
-        <span class="pill">Mar · Dashboard refresh</span>
-        <button class="reset" id="resetBtn" title="Admin only — clear votes">Reset</button>
+<section class="hero wrap">
+  <div class="hero-grid">
+    <div class="hero-left">
+      <h1 class="hello">
+        <span class="word">Welcome</span>
+        <span class="word">to</span>
+        <span class="word">The</span>
+        <span class="word">Touchpoint!</span>
+      </h1>
+      <p class="lede">The wins, The work, and The people behind them.</p>
+      <div class="hero-meta">
+        <span><span class="dot"></span>Issue 01 · April 2026</span>
+        <span>Personalisation &amp; EWI</span>
+        <span>~ 6 min read</span>
+        <span>Internal use only</span>
       </div>
     </div>
 
+    <div class="clocks">
+      <div class="clock">
+        <div class="city">Indianapolis, IN</div>
+        <div class="row">
+          <div class="time"><span id="indyT">--:--</span><span class="secs" id="indyS">--</span><span class="ampm" id="indyA">--</span></div>
+          <div class="stack"><span class="date" id="indyD">--</span></div>
+        </div>
+      </div>
+      <div class="clock">
+        <div class="city">Bengaluru, India</div>
+        <div class="row">
+          <div class="time"><span id="blrT">--:--</span><span class="secs" id="blrS">--</span><span class="ampm" id="blrA">--</span></div>
+          <div class="stack">
+            <span class="ahead">9h 30m ahead</span>
+            <span class="date" id="blrD">--</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
+<div class="ticker-wrap">
+  <div class="ticker" id="ticker"></div>
+</div>
+
+<section class="wrap">
+  <div class="head reveal">
+    <span class="num">§ 01 — STACK PULSE</span>
+    <h2>The numbers, by <span class="it">platform</span>.</h2>
+    <p class="sub">A read on what's flowing through AJO, AEP, CJA, and EWI right now.</p>
+  </div>
+
+  <div class="platforms reveal">
+    <div class="plat" data-acc="amber">
+      <span class="badge">AJO</span>
+      <h3>Adobe Journey Optimizer</h3>
+      <div class="metric">
+        <div class="v"><span class="counter" data-target="47">0</span></div>
+        <div class="l">Live journeys orchestrating</div>
+      </div>
+      <div class="row-stats">
+        <span><b>1.2M</b> events/day</span>
+        <span><b>318</b> audiences</span>
+      </div>
+    </div>
+
+    <div class="plat" data-acc="coral">
+      <span class="badge">AEP</span>
+      <h3>Experience Platform</h3>
+      <div class="metric">
+        <div class="v"><span class="counter" data-target="14.3" data-decimals="1">0</span><span style="font-size:0.6em;color:var(--ink-2);">M</span></div>
+        <div class="l">Profiles unified across sources</div>
+      </div>
+      <div class="row-stats">
+        <span><b>89</b> streams</span>
+        <span><b>24</b> XDM schemas</span>
+      </div>
+    </div>
+
+    <div class="plat" data-acc="mint">
+      <span class="badge">CJA</span>
+      <h3>Customer Journey Analytics</h3>
+      <div class="metric">
+        <div class="v"><span class="counter" data-target="142">0</span></div>
+        <div class="l">Calculated metrics in production</div>
+      </div>
+      <div class="row-stats">
+        <span><b>31</b> dashboards</span>
+        <span><b>8</b> connections</span>
+      </div>
+    </div>
+
+    <div class="plat" data-acc="lilac">
+      <span class="badge">EWI</span>
+      <h3>EWI Workstreams</h3>
+      <div class="metric">
+        <div class="v"><span class="counter" data-target="7">0</span></div>
+        <div class="l">Initiatives in flight this quarter</div>
+      </div>
+      <div class="row-stats">
+        <span><b>12</b> use cases</span>
+        <span><b>4</b> shipping May</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="head reveal">
+    <span class="num">§ 02 — AJO IN THE WILD</span>
+    <h2>Journey of the <span class="it">month</span>.</h2>
+    <p class="sub">A real journey, shipped, performing. Hover the nodes for context.</p>
+  </div>
+
+  <div class="journey-card reveal">
+    <div class="journey-meta">
+      <span>★ Featured</span>
+      <span>·</span>
+      <span class="live">Live since April 03</span>
+      <span>·</span>
+      <span>Owner — Personalisation Squad B</span>
+    </div>
+    <h3>Onboarding refresh — <em>multi-channel welcome</em>.</h3>
+    <p class="desc">Triggered the moment a profile lands in AEP from a sign-up event. Branches on first-week behaviour, and quietly hands off to a re-engagement track if it goes cold.</p>
+
+    <div class="flow" id="flow">
+      <svg viewBox="0 0 1100 200" preserveAspectRatio="xMidYMid meet">
+        <path class="flow-line" d="M 110 100 L 230 100" />
+        <path class="flow-line" d="M 330 100 L 450 100" />
+        <path class="flow-line" d="M 550 100 L 670 60" />
+        <path class="flow-line" d="M 550 100 L 670 140" />
+        <path class="flow-line" d="M 770 60 L 890 100" />
+        <path class="flow-line" d="M 770 140 L 890 100" />
+        <path class="flow-line" d="M 990 100 L 1066 100" />
+
+        <g class="node">
+          <circle cx="60" cy="100" r="34" fill="#f0b766" />
+          <text class="ico-text" x="60" y="106" text-anchor="middle">⚡</text>
+          <text x="60" y="160" text-anchor="middle">Trigger</text>
+          <text x="60" y="176" text-anchor="middle" fill="#8a7a92" font-size="10">sign_up event</text>
+        </g>
+
+        <g class="node">
+          <rect x="246" y="74" width="84" height="52" rx="8" fill="#f08879" />
+          <text class="ico-text" x="288" y="106" text-anchor="middle">✉</text>
+          <text x="288" y="160" text-anchor="middle">Welcome email</text>
+          <text x="288" y="176" text-anchor="middle" fill="#8a7a92" font-size="10">delay 5 min</text>
+        </g>
+
+        <g class="node">
+          <rect x="466" y="74" width="84" height="52" rx="8" fill="#7dd9c8" />
+          <text class="ico-text" x="508" y="106" text-anchor="middle" fill="#1c1640">⏲</text>
+          <text x="508" y="160" text-anchor="middle">Wait 48h</text>
+          <text x="508" y="176" text-anchor="middle" fill="#8a7a92" font-size="10">+ check opens</text>
+        </g>
+
+        <g class="node">
+          <circle cx="610" cy="100" r="28" fill="none" stroke="#c8a8e8" stroke-width="2" stroke-dasharray="3 3" />
+          <text x="610" y="106" text-anchor="middle" fill="#c8a8e8" font-size="14" font-weight="600">if</text>
+          <text x="610" y="160" text-anchor="middle">Branch</text>
+        </g>
+
+        <g class="node">
+          <rect x="686" y="34" width="84" height="52" rx="8" fill="#c8a8e8" />
+          <text class="ico-text" x="728" y="66" text-anchor="middle" fill="#1c1640">▶</text>
+          <text x="728" y="20" text-anchor="middle">In-app tutorial</text>
+        </g>
+
+        <g class="node">
+          <rect x="686" y="114" width="84" height="52" rx="8" fill="#c8a8e8" />
+          <text class="ico-text" x="728" y="146" text-anchor="middle" fill="#1c1640">↻</text>
+          <text x="728" y="190" text-anchor="middle">Re-engage push</text>
+        </g>
+
+        <g class="node">
+          <circle cx="930" cy="100" r="28" fill="#f0b766" />
+          <text class="ico-text" x="930" y="106" text-anchor="middle">✓</text>
+          <text x="930" y="160" text-anchor="middle">Profile update</text>
+        </g>
+
+        <g class="node">
+          <circle cx="1080" cy="100" r="14" fill="none" stroke="#f8f2ee" stroke-width="2" />
+          <circle cx="1080" cy="100" r="6" fill="#f8f2ee" />
+        </g>
+      </svg>
+    </div>
+
+    <div class="journey-stats">
+      <div class="j-stat">
+        <div class="v"><span class="accent">62</span><span style="font-size:0.6em;color:var(--ink-2);">%</span></div>
+        <div class="l">Open rate · email step</div>
+      </div>
+      <div class="j-stat">
+        <div class="v"><span class="accent">3.4</span><span style="font-size:0.6em;color:var(--ink-2);">x</span></div>
+        <div class="l">Lift in week-1 retention</div>
+      </div>
+      <div class="j-stat">
+        <div class="v"><span class="accent">11</span><span style="font-size:0.6em;color:var(--ink-2);">%</span></div>
+        <div class="l">Re-engaged via push</div>
+      </div>
+      <div class="j-stat">
+        <div class="v">$<span class="accent">0.04</span></div>
+        <div class="l">Cost per activation</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="head reveal">
+    <span class="num">§ 03 — AEP DEEP CUT</span>
+    <h2>Schema in the <span class="it">spotlight</span>.</h2>
+    <p class="sub">A new XDM field set went live this month. Here's what's in it.</p>
+  </div>
+
+  <div class="split-2 reveal">
+    <div class="schema-info">
+      <h3>Loyalty <em>tier</em> profile.</h3>
+      <p>Three new fields under the <code>_tenant</code> namespace. Lets every downstream journey personalise on tier without joining back to the source-of-truth table on every call.</p>
+      <div class="pills">
+        <span class="pill">XDM Individual Profile</span>
+        <span class="pill">_tenant.loyalty</span>
+        <span class="pill">3 fields added</span>
+        <span class="pill">Live in Prod</span>
+      </div>
+    </div>
+
+    <div class="code-card">
+      <div class="code-bar">
+        <span class="d a"></span><span class="d b"></span><span class="d c"></span>
+        <span class="name">profile_loyalty.json — XDM</span>
+      </div>
+      <div class="code-body">
+<pre style="margin:0;font-family:inherit;white-space:pre-wrap;color:var(--ink);">{
+  <span class="k">"$id"</span>: <span class="s">"https://ns.adobe.com/_tenant/loyalty"</span>,
+  <span class="k">"type"</span>: <span class="s">"object"</span>,
+  <span class="k">"title"</span>: <span class="s">"Loyalty Tier Profile"</span>,
+  <span class="c">// new this month ↓</span>
+  <span class="k">"properties"</span>: {
+    <span class="new"><span class="k">"loyaltyTier"</span>: { <span class="k">"type"</span>: <span class="s">"string"</span>, <span class="k">"enum"</span>: [<span class="s">"bronze"</span>, <span class="s">"silver"</span>, <span class="s">"gold"</span>, <span class="s">"platinum"</span>] }</span>,
+    <span class="new"><span class="k">"pointsBalance"</span>: { <span class="k">"type"</span>: <span class="s">"integer"</span>, <span class="k">"minimum"</span>: <span class="n">0</span> }</span>,
+    <span class="new"><span class="k">"tierExpiresOn"</span>: { <span class="k">"type"</span>: <span class="s">"string"</span>, <span class="k">"format"</span>: <span class="s">"date-time"</span> }</span>
+  }
+}</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="head reveal">
+    <span class="num">§ 04 — CJA TELL-ALL</span>
+    <h2>This month's <span class="it">finding</span>.</h2>
+    <p class="sub">From Customer Journey Analytics — the kind of pattern you only see when channels sit on the same data lake.</p>
+  </div>
+
+  <div class="insight-card reveal">
+    <div class="insight-text">
+      <span class="tag">CROSS-CHANNEL</span>
+      <p class="finding">Push notifications opened within 30 min correlate with <b>3.2× more same-session conversions</b> than emails opened in the same window.</p>
+      <div class="meta">SOURCE — <b>CJA workspace · push_vs_email_30m</b> · sample n = 412K · last 30 days</div>
+    </div>
+
+    <div class="chart" id="chart">
+      <div class="bar-wrap">
+        <div class="bar" data-h="32"><span class="v">1.0×</span></div>
+        <span class="lab">Email</span>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar alt" data-h="100"><span class="v">3.2×</span></div>
+        <span class="lab">Push</span>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar" data-h="58"><span class="v">1.8×</span></div>
+        <span class="lab">SMS</span>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar alt" data-h="78"><span class="v">2.5×</span></div>
+        <span class="lab">In-app</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="head reveal">
+    <span class="num">§ 05 — STEAL THIS</span>
+    <h2>Three tips for the <span class="it">toolkit</span>.</h2>
+    <p class="sub">Small things that pay for themselves on day one.</p>
+  </div>
+
+  <div class="toolkit reveal">
+    <div class="tip">
+      <span class="num">01</span>
+      <span class="ctx">AEP · Query Service</span>
+      <h4>Prototype <em>before</em> you promote.</h4>
+      <p>Run exploratory queries in the ad-hoc workspace before turning them into a Data Distiller dataset. You'll catch joins-from-hell at the cheapest possible point.</p>
+    </div>
+    <div class="tip">
+      <span class="num">02</span>
+      <span class="ctx">AEP · XDM</span>
+      <h4>Always namespace <em>custom</em> fields.</h4>
+      <p>Drop everything custom under <code>_tenant.{your_org}</code> — never the root. Future-proofs you against schema collisions and keeps Adobe upgrades from rewriting your fields.</p>
+    </div>
+    <div class="tip">
+      <span class="num">03</span>
+      <span class="ctx">CJA · Calculated Metrics</span>
+      <h4>Save <em>once</em>, reuse forever.</h4>
+      <p>An expensive metric used in three dashboards is three times the cost. Save it as a component, share via library, swap the tax for a single source of truth.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="head reveal">
+    <span class="num">§ 06 — THE DECODER</span>
+    <h2>Glossary, <span class="it">expanded</span>.</h2>
+    <p class="sub">Hover or tap any panel to see the full thing. Five acronyms we say too often.</p>
+  </div>
+
+  <div class="glossary reveal" id="glossary">
+    <div class="gloss open">
+      <div>
+        <div class="acro">RTCDP</div>
+        <div class="full">Real-Time Customer Data Platform</div>
+        <p class="body">The Adobe SaaS layer that ingests, unifies, segments, and activates customer profiles in milliseconds — built on top of AEP. If you've ever pushed a segment to Facebook Ads in real time, this is what you used.</p>
+      </div>
+      <div class="arrow">→ EXPANDED</div>
+    </div>
+    <div class="gloss">
+      <div>
+        <div class="acro">XDM</div>
+        <div class="full">Experience Data Model</div>
+        <p class="body">Adobe's open standard for describing customer-experience data. Every field in AEP / AJO / CJA conforms to an XDM schema — that's how a clickstream event from one team can talk to a journey built by another.</p>
+      </div>
+      <div class="arrow">→ EXPAND</div>
+    </div>
+    <div class="gloss">
+      <div>
+        <div class="acro">IMS</div>
+        <div class="full">Identity Management Service</div>
+        <p class="body">Adobe's identity backbone. Stitches the same person across devices, channels, and login states using the Identity Graph. Without it, "unified profile" is just three rows in a table.</p>
+      </div>
+      <div class="arrow">→ EXPAND</div>
+    </div>
+    <div class="gloss">
+      <div>
+        <div class="acro">EDGE</div>
+        <div class="full">Adobe Edge Network</div>
+        <p class="body">The globally-distributed compute layer that lets AJO score and decide on a profile in &lt;100ms. If your journey "feels real-time" to a customer, the Edge Network is the reason.</p>
+      </div>
+      <div class="arrow">→ EXPAND</div>
+    </div>
+    <div class="gloss">
+      <div>
+        <div class="acro">B2P</div>
+        <div class="full">Business-to-Person</div>
+        <p class="body">The unified view Adobe is pushing for orgs that have both B2B and B2C motions — model the human, not the channel. Reduces duplicate profiles when the same person shows up as both a buyer and a consumer.</p>
+      </div>
+      <div class="arrow">→ EXPAND</div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="head reveal">
+    <span class="num">§ 07 — TEAM KUDOS</span>
+    <h2>This month's <span class="it">shoutouts</span>.</h2>
+    <p class="sub">Sent in by you, lightly edited by us.</p>
+  </div>
+
+  <div class="kudos-grid reveal">
+    <div class="kudo">
+      <div class="av" style="background: linear-gradient(135deg, var(--amber), var(--coral));">RM</div>
+      <div>
+        <div class="who">Riya Menon</div>
+        <div class="role">AJO Squad · Bengaluru</div>
+        <div class="msg">"Caught a journey loop that would have spammed users 14 times in an hour. Saved us a Monday."</div>
+        <span class="from">~ from the Personalisation team</span>
+      </div>
+    </div>
+    <div class="kudo">
+      <div class="av" style="background: linear-gradient(135deg, var(--mint), var(--lilac));">TC</div>
+      <div>
+        <div class="who">Theo Carlsen</div>
+        <div class="role">AEP Data Architect · Indy</div>
+        <div class="msg">"Documented the loyalty schema so well our QA team didn't ping us once during UAT. A miracle."</div>
+        <span class="from">~ from the QA chat</span>
+      </div>
+    </div>
+    <div class="kudo">
+      <div class="av" style="background: linear-gradient(135deg, var(--lilac), var(--coral));">AM</div>
+      <div>
+        <div class="who">Aanya Mathur</div>
+        <div class="role">CJA Analyst · Bengaluru</div>
+        <div class="msg">"Built the push-vs-email finding that's now in this newsletter. Quietly. Like it was nothing."</div>
+        <span class="from">~ from your editor</span>
+      </div>
+    </div>
+    <div class="kudo">
+      <div class="av" style="background: linear-gradient(135deg, var(--coral), var(--amber));">MO</div>
+      <div>
+        <div class="who">Marcus Okafor</div>
+        <div class="role">EWI Lead · Indy</div>
+        <div class="msg">"Translated 'real-time' into actual SLAs we can hold ourselves to. The on-call rotation can sleep again."</div>
+        <span class="from">~ from the on-call rotation</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="head reveal">
+    <span class="num">§ 08 — UP NEXT</span>
+    <h2>What's <span class="it">shipping</span>.</h2>
+    <p class="sub">A peek at the next 90 days. Subject to change — but unlikely.</p>
+  </div>
+
+  <div class="roadmap" id="roadmap">
+    <div class="rm">
+      <div class="when">May 2026</div>
+      <h4>RTCDP destination — paid social refresh</h4>
+      <p>Migrating off the legacy push from AEP to a native RTCDP destination. Latency drops from minutes to seconds, and the activation logs finally make sense.</p>
+    </div>
+    <div class="rm">
+      <div class="when">June 2026</div>
+      <h4>AJO native in-app channel</h4>
+      <p>Rolling out AJO's in-app surface so squad B can run experiments without depending on a release cycle. Targeting is XDM-driven from day one.</p>
+    </div>
+    <div class="rm">
+      <div class="when">July 2026</div>
+      <h4>CJA → Power BI bridge for execs</h4>
+      <p>Leadership dashboards finally get a live CJA pipe instead of a weekly CSV. Calculated metrics flow through; no more "why's this number different than mine."</p>
+    </div>
+    <div class="rm">
+      <div class="when">Q3 2026</div>
+      <h4>EWI: identity stitch v2</h4>
+      <p>Second pass on the identity graph rules — adds offline-to-online stitching via hashed-email match keys. Profiles unified across the previously-dark in-store path.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="head reveal">
+    <span class="num">§ 09 — SIGN-OFF</span>
+    <h2>One <span class="it">joke</span>, one tap.</h2>
+  </div>
+
+  <div class="split-jm reveal">
+    <div class="joke" id="joke">
+      <div class="lab">Joke of the month</div>
+      <div class="setup">"Why did the AEP profile go to therapy?"</div>
+      <button class="btn" id="jokeBtn">Reveal punchline →</button>
+      <div class="punch">It had too many merge policies and couldn't pick a real self.</div>
+    </div>
+
+    <div class="mood">
+      <div class="lab">How was issue 01?</div>
+      <h3>Pick the <em>vibe</em>.</h3>
+      <div class="moods" id="moods">
+        <div class="mood-btn" data-m="ouch">😴</div>
+        <div class="mood-btn" data-m="meh">😐</div>
+        <div class="mood-btn" data-m="ok">🙂</div>
+        <div class="mood-btn" data-m="love">🤩</div>
+        <div class="mood-btn" data-m="fire">🔥</div>
+      </div>
+      <div class="mood-thanks" id="moodThanks"></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <div class="logo">The <em>Touchpoint</em></div>
+        <p>A monthly dispatch from the Personalisation &amp; EWI team. AJO, AEP, CJA — and the people who make it all click.</p>
+      </div>
+      <div class="foot-col">
+        <h5>Contribute</h5>
+        <a href="#">Submission form</a>
+        <a href="#">Pitch a journey</a>
+        <a href="#">Send a kudo</a>
+        <a href="#">Suggest a glossary entry</a>
+      </div>
+      <div class="foot-col">
+        <h5>Find us</h5>
+        <a href="#">Teams channel</a>
+        <a href="#">SharePoint hub</a>
+        <a href="#">Past issues</a>
+        <a href="#">Editor inbox</a>
+      </div>
+    </div>
+    <div class="legal">
+      Internal use only · Personalisation &amp; EWI · April 2026.<br>
+      No customer PII or commercially sensitive data is shared in this newsletter.
+    </div>
+  </div>
+</footer>
+
 <script>
-  /* ============================================================
-     STORAGE HELPERS
-     For Claude preview: uses window.storage (persists across sessions).
-     For production github.io: replace with localStorage OR a webhook.
-     ============================================================ */
-  const KEY = 'podx-meme-faceoff-april-2026';
-  const VOTED_KEY = 'podx-meme-faceoff-voted-april-2026';
+const prog = document.getElementById('progress');
+window.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  prog.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+});
 
-  async function loadVotes() {
-    try {
-      if (window.storage) {
-        const r = await window.storage.get(KEY);
-        return r && r.value ? JSON.parse(r.value) : { a: 0, b: 0 };
+const spot = document.getElementById('spot');
+window.addEventListener('mousemove', (e) => {
+  spot.style.setProperty('--mx', e.clientX + 'px');
+  spot.style.setProperty('--my', e.clientY + 'px');
+});
+
+function tick() {
+  const now = new Date();
+  function fmt(tz) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true
+    }).formatToParts(now);
+    const h = parts.find(p => p.type === 'hour').value;
+    const m = parts.find(p => p.type === 'minute').value;
+    const s = parts.find(p => p.type === 'second').value;
+    const a = parts.find(p => p.type === 'dayPeriod').value;
+    const d = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(now);
+    return { time: h + ':' + m, secs: s, ampm: a, date: d };
+  }
+  const i = fmt('America/Indiana/Indianapolis');
+  const b = fmt('Asia/Kolkata');
+  document.getElementById('indyT').textContent = i.time;
+  document.getElementById('indyS').textContent = i.secs;
+  document.getElementById('indyA').textContent = i.ampm;
+  document.getElementById('indyD').textContent = i.date;
+  document.getElementById('blrT').textContent = b.time;
+  document.getElementById('blrS').textContent = b.secs;
+  document.getElementById('blrA').textContent = b.ampm;
+  document.getElementById('blrD').textContent = b.date;
+}
+tick();
+setInterval(tick, 1000);
+
+(function () {
+  const items = [
+    'Issue 01 ships May 31',
+    '<b>47</b> AJO journeys live',
+    '<b>14.3M</b> profiles in AEP',
+    '<b>142</b> CJA calculated metrics in production',
+    'EWI identity stitch v2 — Q3',
+    'Loyalty schema · 3 new fields shipped',
+    'Push 30-min open beats email by 3.2×',
+    'Submissions open Week 2 of May'
+  ];
+  const html = items.map(t => `<span class="item">${t}</span>`).join('');
+  document.getElementById('ticker').innerHTML = html + html + html;
+})();
+
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    e.target.classList.add('in');
+
+    e.target.querySelectorAll('.counter').forEach(c => {
+      if (c.dataset.done) return;
+      c.dataset.done = '1';
+      const target = parseFloat(c.dataset.target);
+      const decimals = parseInt(c.dataset.decimals || '0', 10);
+      const dur = 1700;
+      const start = performance.now();
+      function step(t) {
+        const p = Math.min(1, (t - start) / dur);
+        const eased = 1 - Math.pow(1 - p, 3);
+        const val = target * eased;
+        c.textContent = decimals ? val.toFixed(decimals) : Math.round(val);
+        if (p < 1) requestAnimationFrame(step);
       }
-    } catch (e) { /* key not found — fine */ }
-    // fallback for non-Claude environments
-    try {
-      const v = localStorage.getItem(KEY);
-      return v ? JSON.parse(v) : { a: 0, b: 0 };
-    } catch (e) {
-      return { a: 0, b: 0 };
-    }
-  }
+      requestAnimationFrame(step);
+    });
 
-  async function saveVotes(votes) {
-    try {
-      if (window.storage) {
-        await window.storage.set(KEY, JSON.stringify(votes));
-        return;
-      }
-    } catch (e) {}
-    try { localStorage.setItem(KEY, JSON.stringify(votes)); } catch (e) {}
-  }
-
-  async function loadVoted() {
-    try {
-      if (window.storage) {
-        const r = await window.storage.get(VOTED_KEY);
-        return r && r.value ? r.value : null;
-      }
-    } catch (e) {}
-    try { return localStorage.getItem(VOTED_KEY); } catch (e) { return null; }
-  }
-
-  async function saveVoted(team) {
-    try {
-      if (window.storage) {
-        await window.storage.set(VOTED_KEY, team);
-        return;
-      }
-    } catch (e) {}
-    try { localStorage.setItem(VOTED_KEY, team); } catch (e) {}
-  }
-
-  async function clearAll() {
-    try { if (window.storage) { await window.storage.delete(KEY); await window.storage.delete(VOTED_KEY); } } catch (e) {}
-    try { localStorage.removeItem(KEY); localStorage.removeItem(VOTED_KEY); } catch (e) {}
-  }
-
-  /* ============================================================
-     RENDER
-     ============================================================ */
-  function renderResults(votes) {
-    const total = votes.a + votes.b;
-    const pctA = total ? Math.round((votes.a / total) * 100) : 0;
-    const pctB = total ? 100 - pctA : 0;
-
-    document.getElementById('pct-a').textContent = pctA + '%';
-    document.getElementById('pct-b').textContent = pctB + '%';
-    document.getElementById('count-a').textContent = votes.a + ' vote' + (votes.a === 1 ? '' : 's');
-    document.getElementById('count-b').textContent = votes.b + ' vote' + (votes.b === 1 ? '' : 's');
-    document.getElementById('bar-a').style.width = pctA + '%';
-    document.getElementById('bar-b').style.width = pctB + '%';
-    document.getElementById('totalVotes').textContent = total;
-  }
-
-  function showResults() {
-    document.getElementById('result-a').classList.add('visible');
-    document.getElementById('result-b').classList.add('visible');
-    document.querySelectorAll('.vote-btn').forEach(b => b.disabled = true);
-  }
-
-  function fireConfetti(team) {
-    const host = document.getElementById('confetti');
-    host.innerHTML = '';
-    const colors = team === 'a'
-      ? ['#d83a1f', '#fde4dd', '#c89b3c', '#181410']
-      : ['#0d5c63', '#d5e7e8', '#c89b3c', '#181410'];
-    const startX = team === 'a' ? 25 : 75;
-    for (let i = 0; i < 40; i++) {
-      const s = document.createElement('span');
-      s.style.background = colors[i % colors.length];
-      s.style.left = (startX + (Math.random() * 30 - 15)) + '%';
-      s.style.animation = `confettiFall ${0.9 + Math.random() * 0.8}s ease-out ${Math.random() * 0.2}s forwards`;
-      s.style.transform = `rotate(${Math.random() * 360}deg)`;
-      host.appendChild(s);
-    }
-  }
-
-  /* ============================================================
-     INIT
-     ============================================================ */
-  (async function init() {
-    const votes = await loadVotes();
-    const voted = await loadVoted();
-    renderResults(votes);
-
-    if (voted) {
-      showResults();
-      const which = voted === 'a' ? 'Contender A' : 'Contender B';
-      document.getElementById('votedMsg').textContent = `Thanks — your vote for ${which} is in. Come back next month for round 04.`;
-      document.getElementById('votedMsg').classList.add('show');
-    }
-
-    document.querySelectorAll('.vote-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const team = btn.dataset.vote;
-        const v = await loadVotes();
-        v[team] = (v[team] || 0) + 1;
-        await saveVotes(v);
-        await saveVoted(team);
-        renderResults(v);
-        showResults();
-        fireConfetti(team);
-        const which = team === 'a' ? 'Contender A' : 'Contender B';
-        const msg = document.getElementById('votedMsg');
-        msg.textContent = `Locked in for ${which}. See you next round.`;
-        msg.classList.add('show');
+    if (e.target.id === 'chart') {
+      e.target.querySelectorAll('.bar').forEach((b, i) => {
+        setTimeout(() => { b.style.height = b.dataset.h + '%'; }, i * 150);
       });
-    });
+    }
 
-    document.getElementById('resetBtn').addEventListener('click', async () => {
-      await clearAll();
-      location.reload();
+    if (e.target.id === 'roadmap') {
+      e.target.querySelectorAll('.rm').forEach((it, i) => {
+        setTimeout(() => it.classList.add('in'), i * 180);
+      });
+    }
+
+    io.unobserve(e.target);
+  });
+}, { threshold: 0.18 });
+
+document.querySelectorAll('.reveal, #roadmap, #chart, #flow').forEach(el => io.observe(el));
+
+(function () {
+  const items = document.querySelectorAll('#glossary .gloss');
+  items.forEach(g => {
+    g.addEventListener('click', () => {
+      items.forEach(o => o.classList.remove('open'));
+      g.classList.add('open');
     });
-  })();
+  });
+})();
+
+document.getElementById('jokeBtn').addEventListener('click', () => {
+  document.getElementById('joke').classList.add('shown');
+});
+
+const MK = 'touchpoint-mood-apr-2026';
+(function () {
+  const btns = document.querySelectorAll('.mood-btn');
+  const t = document.getElementById('moodThanks');
+  const saved = localStorage.getItem(MK);
+  function paint(v) { btns.forEach(b => b.classList.toggle('picked', b.dataset.m === v)); }
+  if (saved) {
+    paint(saved);
+    t.textContent = '~ logged. see you next month ~';
+    t.classList.add('show');
+  }
+  btns.forEach(b => {
+    b.addEventListener('click', () => {
+      const v = b.dataset.m;
+      localStorage.setItem(MK, v);
+      paint(v);
+      t.textContent = '~ logged. see you next month ~';
+      t.classList.add('show');
+    });
+  });
+})();
 </script>
+</body>
+</html>
